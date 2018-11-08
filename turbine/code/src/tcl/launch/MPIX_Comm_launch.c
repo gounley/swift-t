@@ -78,29 +78,33 @@ static int info_get_envs(MPI_Comm comm, MPI_Info info,
 	MPI_Info_get(info,"envs",len+1,count_string,&flag);
 	long count = strtod(count_string, NULL);
 	int* lengths = alloca(count * sizeof(int));
-	char* env_word = "env ";
+	char* env_word = "-env ";
 	size_t env_word_length = strlen(env_word);
-	size_t total = env_word_length;
+	size_t total = 0;
 	char key[16];
 	int i;
 	for(i=0; i<count; i++) {
+		total += env_word_length;
 		sprintf(key, "env%i", i);
 		MPI_Info_get_valuelen(info, key, &len, &flag);
 		if(!flag) info_get_envs_error(comm, key);
 		lengths[i] = len;
-		total += len+2;
+		total += len + 1;
 	}
-	result = malloc(total);
+	result = malloc(total * sizeof(char));
 	memset(result, 0, total);
-	strcpy(result, env_word);
-	char* p = result+env_word_length;
+	// strcpy(result, env_word);
+	char* p = result;
 	for(i=0; i<count; i++) {
+		strcpy(p, env_word);
+		p += env_word_length;
 		sprintf(key, "env%i", i);
-		MPI_Info_get(info,key,lengths[i],p,&flag);
+		MPI_Info_get(info, key, lengths[i] + 1, p, &flag);
 		p += lengths[i];
 		*p = ' ';
 		p++;
 	}
+	p--;
 	*p = '\0';
 
 	*envs = result;
