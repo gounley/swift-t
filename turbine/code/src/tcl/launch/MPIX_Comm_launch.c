@@ -49,16 +49,16 @@ static char* info_get_output_redirection(MPI_Info info) {
 	return redirect;
 }
 
-static char* info_get_time_output(MPI_Info info) {
+static char* info_get_exectime(MPI_Info info) {
 	char* print_time;
 	int flag = 0;
 	if (MPI_INFO_NULL != info) {
 		int len = 0;
-		MPI_Info_get_valuelen(info, "time", &len, &flag);
+		MPI_Info_get_valuelen(info, "exectime", &len, &flag);
 		if (flag) {
 			char filename[len + 1];
 
-			MPI_Info_get(info, "time", len + 1, filename, &flag);
+			MPI_Info_get(info, "exectime", len + 1, filename, &flag);
 			print_time = (char*) malloc((len + 32) * sizeof(char));
 			sprintf(print_time,"/usr/bin/time -v -o %s ", filename);
 		}
@@ -252,7 +252,7 @@ int MPIX_Comm_launch(const char* cmd, char** argv,
 		// get output redirection string
 		char* redirect = info_get_output_redirection(info);
 		// get time printing string
-		char* print_time = info_get_time_output(info);
+		char* print_time = info_get_exectime(info);
 		// get the timeout
 		float timeout = (float) info_get_timeout(comm, info);
 		info_chdir(comm, info);
@@ -307,7 +307,7 @@ int MPIX_Comm_launch(const char* cmd, char** argv,
 
 		// create MPI command
 		if(strcmp("turbine",launcher) == 0) {
-			sprintf(mpicmd, "-hosts=%s", allhosts);
+			sprintf(mpicmd, "-ppn 1 -hosts=%s", allhosts);
 			setenv("TURBINE_LAUNCH_OPTIONS", mpicmd, 1);
 			sprintf(mpicmd, "%s -n %d ", launcher, (size+1));
 		} else {
