@@ -49,6 +49,27 @@ static char* info_get_output_redirection(MPI_Info info) {
 	return redirect;
 }
 
+static char* info_get_time_output(MPI_Info info) {
+	char* print_time;
+	int flag = 0;
+	if (MPI_INFO_NULL != info) {
+		int len = 0;
+		MPI_Info_get_valuelen(info, "time", &len, &flag);
+		if (flag) {
+			char filename[len + 1];
+
+			MPI_Info_get(info, "time", len + 1, filename, &flag);
+			print_time = (char*) malloc((len + 32) * sizeof(char));
+			sprintf(print_time,"/usr/bin/time -v -o %s ", filename);
+		}
+	}
+	if (! flag) {
+		print_time = (char*) malloc(sizeof(char));
+		print_time[0] = '\0';
+	}
+	return print_time;
+}
+
 static void info_get_envs_error(MPI_Comm comm, const char* message);
 
 /**
@@ -80,7 +101,7 @@ static int info_get_envs(MPI_Comm comm, MPI_Info info,
 	int* lengths = alloca(count * sizeof(int));
 	char* env_word = "-env ";
 	size_t env_word_length = strlen(env_word);
-	size_t total = 0;
+	size_t total = 1;
 	char key[16];
 	int i;
 	for(i=0; i<count; i++) {
@@ -104,7 +125,6 @@ static int info_get_envs(MPI_Comm comm, MPI_Info info,
 		*p = ' ';
 		p++;
 	}
-	p--;
 	*p = '\0';
 
 	*envs = result;
@@ -231,6 +251,8 @@ int MPIX_Comm_launch(const char* cmd, char** argv,
 		char* launcher = info_get_launcher(info);
 		// get output redirection string
 		char* redirect = info_get_output_redirection(info);
+		// get time printing string
+		char* print_time = info_get_time_output(info);
 		// get the timeout
 		float timeout = (float) info_get_timeout(comm, info);
 		info_chdir(comm, info);
@@ -273,6 +295,7 @@ int MPIX_Comm_launch(const char* cmd, char** argv,
 		s += strlen(allhosts)+1;
 		s += strlen(launcher)+1;
 		s += strlen(redirect)+1;
+		s += strlen(print_time) + 1;
 		if(argv)
 			for(i=0; argv[i] != NULL; i++)
 				s += strlen(argv[i])+1;
@@ -288,8 +311,14 @@ int MPIX_Comm_launch(const char* cmd, char** argv,
 			setenv("TURBINE_LAUNCH_OPTIONS", mpicmd, 1);
 			sprintf(mpicmd, "%s -n %d ", launcher, (size+1));
 		} else {
-			sprintf(mpicmd, "%s -n %d -hosts %s -launcher ssh ",
-                                launcher, size, allhosts);
+			if (strcmp("\0", print_time) == 0)
+			{
+				sprintf(mpicmd, "%s -n %d -ppn 1 -hosts %s -launcher ssh ",
+					launcher, size, allhosts);
+			} else {
+				sprintf(mpicmd, "%s %s -n %d -ppn 1 -hosts %s -launcher ssh ",
+					print_time, launcher, size, allhosts);
+			}
 		}
 
 		strcat(mpicmd, timeout_string);
@@ -310,7 +339,7 @@ int MPIX_Comm_launch(const char* cmd, char** argv,
 		// concatenate the redirection
 		strcat(mpicmd, redirect);
 
-		// printf("mpicmd: %s\n", mpicmd); fflush(stdout);
+		printf("mpicmd: %s\n", mpicmd); fflush(stdout);
 
 		// calls the system command
 		*exit_code = system(mpicmd);
@@ -332,6 +361,7 @@ int MPIX_Comm_launch(const char* cmd, char** argv,
 		free(mpicmd);
 		free(launcher);
 		free(redirect);
+		free(print_time);
 	}
 
 	// broadcast the exit status
