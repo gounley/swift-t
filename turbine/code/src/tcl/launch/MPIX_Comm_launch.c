@@ -97,7 +97,7 @@ static int info_get_envs(MPI_Comm comm, MPI_Info info,
 	}
 	char count_string[len+1];
 	MPI_Info_get(info,"envs",len+1,count_string,&flag);
-	long count = strtod(count_string, NULL);
+	long count = strtol(count_string, NULL, 10);
 	int* lengths = alloca(count * sizeof(int));
 	char* env_word = "-env ";
 	size_t env_word_length = strlen(env_word);
@@ -140,9 +140,9 @@ static void info_get_envs_error(MPI_Comm comm, const char* key) {
 static double TIMEOUT_NONE = -400;
 
 /**
-   Obtain info key "timeout", which times out the task.
-   Hydra users can also use MPIEXEC_TIMEOUT
- */
+  Obtain info key "timeout", which times out the task.
+  Hydra users can also use MPIEXEC_TIMEOUT
+  */
 static double info_get_timeout(MPI_Comm comm, MPI_Info info) {
 	float timeout = (float) TIMEOUT_NONE; int flag = 0;
 	if(MPI_INFO_NULL != info) {
@@ -160,6 +160,46 @@ static double info_get_timeout(MPI_Comm comm, MPI_Info info) {
 		}
 	}
 	return timeout;
+}
+
+static int info_get_numproc(MPI_Comm comm, MPI_Info info) {
+	int numproc = 1;
+	int flag = 0;
+	if(MPI_INFO_NULL != info) {
+		int len = 0;
+		MPI_Info_get_valuelen(info, "numproc", &len, &flag);
+		if(flag) {
+			char numproc_string[len + 1];
+			MPI_Info_get(info, "numproc", len + 1, numproc_string, &flag);
+			int n = sscanf(numproc_string, "%d", &numproc);
+			if (n != 1 || numproc <= 0) {
+				printf("MPIX_Comm_launch(): error retrieving info value for key 'numproc': "
+						"should be a positive int: '%s'\n", numproc_string);
+				MPI_Abort(comm, 1);
+			}
+		}
+	}
+	return numproc;
+}
+
+static int info_get_ppw(MPI_Comm comm, MPI_Info info) {
+	int ppw = 1;
+	int flag = 0;
+	if(MPI_INFO_NULL != info) {
+		int len = 0;
+		MPI_Info_get_valuelen(info, "ppw", &len, &flag);
+		if(flag) {
+			char ppw_string[len + 1];
+			MPI_Info_get(info, "ppw", len + 1, ppw_string, &flag);
+			int n = sscanf(ppw_string, "%d", &ppw);
+			if (n != 1 || ppw <= 0) {
+				printf("MPIX_Comm_launch(): error retrieving info value for key 'ppw': "
+						"should be a positive int: '%s'\n", ppw_string);
+				MPI_Abort(comm, 1);
+			}
+		}
+	}
+	return ppw;
 }
 
 static inline void chdir_checked(MPI_Comm comm, const char* d);
@@ -184,13 +224,13 @@ static void info_chdir(MPI_Comm comm, MPI_Info info) {
 /**
   If the info key "write_hosts"=filename is given,
   write the hosts to the filename
-*/
+  */
 static int write_hosts(MPI_Info info, const char* allhosts, int size) {
 	int len, flag=0;
 	if(MPI_INFO_NULL == info) {
 		return MPI_SUCCESS;
 	}
-        MPI_Info_get_valuelen(info, "write_hosts", &len, &flag);
+	MPI_Info_get_valuelen(info, "write_hosts", &len, &flag);
 	if(!flag) {
 		return MPI_SUCCESS;
 	}
@@ -240,8 +280,8 @@ int MPIX_Comm_launch(const char* cmd, char** argv,
 		if(!allhosts) goto fn_error;
 	}
 	r = MPI_Gather(procname, MPI_MAX_PROCESSOR_NAME+1, MPI_CHAR,
-	               allhosts, MPI_MAX_PROCESSOR_NAME+1, MPI_CHAR,
-	               root, comm);
+			allhosts, MPI_MAX_PROCESSOR_NAME+1, MPI_CHAR,
+			root, comm);
 	if(r) goto fn_error;
 
 	// printf("exec\n");   fflush(stdout);
@@ -255,6 +295,10 @@ int MPIX_Comm_launch(const char* cmd, char** argv,
 		char* print_time = info_get_exectime(info);
 		// get the timeout
 		float timeout = (float) info_get_timeout(comm, info);
+		int numproc = info_get_numproc(comm, info);
+		int ppw = info_get_ppw(comm, info);
+		assert(numproc <= ppw * size);
+
 		info_chdir(comm, info);
 
 		char timeout_string[64];
@@ -307,17 +351,17 @@ int MPIX_Comm_launch(const char* cmd, char** argv,
 
 		// create MPI command
 		if(strcmp("turbine",launcher) == 0) {
-			sprintf(mpicmd, "-ppn 1 -hosts=%s", allhosts);
+			sprintf(mpicmd, "-ppn %d -hosts=%s", ppw, allhosts);
 			setenv("TURBINE_LAUNCH_OPTIONS", mpicmd, 1);
-			sprintf(mpicmd, "%s -n %d ", launcher, (size+1));
+			sprintf(mpicmd, "%s -n %d ", launcher, (numproc+1));
 		} else {
 			if (strcmp("\0", print_time) == 0)
 			{
-				sprintf(mpicmd, "%s -n %d -ppn 1 -hosts %s -launcher ssh ",
-					launcher, size, allhosts);
+				sprintf(mpicmd, "%s -n %d -ppn %d -hosts %s -launcher ssh ",
+						launcher, numproc, ppw, allhosts);
 			} else {
-				sprintf(mpicmd, "%s %s -n %d -ppn 1 -hosts %s -launcher ssh ",
-					print_time, launcher, size, allhosts);
+				sprintf(mpicmd, "%s %s -n %d -ppn %d -hosts %s -launcher ssh ",
+						print_time, launcher, numproc, ppw, allhosts);
 			}
 		}
 
