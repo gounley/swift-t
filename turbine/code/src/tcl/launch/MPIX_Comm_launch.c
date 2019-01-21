@@ -70,6 +70,44 @@ static char* info_get_exectime(MPI_Info info) {
 	return print_time;
 }
 
+static int info_get_ppw(MPI_Info info) {
+	int ppw = 1;
+	int flag = 0;
+	if(MPI_INFO_NULL != info) {
+		int len = 0;
+		MPI_Info_get_valuelen(info, "ppw", &len, &flag);
+		if(flag) {
+			char ppw_string[len + 1];
+			MPI_Info_get(info, "ppw", len + 1, ppw_string, &flag);
+			int n = sscanf(ppw_string, "%d", &ppw);
+			if (n != 1 || ppw <= 0) {
+				printf("MPIX_Comm_launch(): error retrieving info value for key 'ppw': "
+						"should be a positive int: '%s'\n", ppw_string);
+			}
+		}
+	}
+	return ppw;
+}
+
+static int info_get_numproc(MPI_Info info) {
+	int numproc = 1;
+	int flag = 0;
+	if(MPI_INFO_NULL != info) {
+		int len = 0;
+		MPI_Info_get_valuelen(info, "numproc", &len, &flag);
+		if(flag) {
+			char numproc_string[len + 1];
+			MPI_Info_get(info, "numproc", len + 1, numproc_string, &flag);
+			int n = sscanf(numproc_string, "%d", &numproc);
+			if (n != 1 || numproc <= 0) {
+				printf("MPIX_Comm_launch(): error retrieving info value for key 'numproc': "
+						"should be a positive int: '%s'\n", numproc_string);
+			}
+		}
+	}
+	return numproc;
+}
+
 static void info_get_envs_error(MPI_Comm comm, const char* message);
 
 /**
@@ -160,46 +198,6 @@ static double info_get_timeout(MPI_Comm comm, MPI_Info info) {
 		}
 	}
 	return timeout;
-}
-
-static int info_get_numproc(MPI_Comm comm, MPI_Info info) {
-	int numproc = 1;
-	int flag = 0;
-	if(MPI_INFO_NULL != info) {
-		int len = 0;
-		MPI_Info_get_valuelen(info, "numproc", &len, &flag);
-		if(flag) {
-			char numproc_string[len + 1];
-			MPI_Info_get(info, "numproc", len + 1, numproc_string, &flag);
-			int n = sscanf(numproc_string, "%d", &numproc);
-			if (n != 1 || numproc <= 0) {
-				printf("MPIX_Comm_launch(): error retrieving info value for key 'numproc': "
-						"should be a positive int: '%s'\n", numproc_string);
-				MPI_Abort(comm, 1);
-			}
-		}
-	}
-	return numproc;
-}
-
-static int info_get_ppw(MPI_Comm comm, MPI_Info info) {
-	int ppw = 1;
-	int flag = 0;
-	if(MPI_INFO_NULL != info) {
-		int len = 0;
-		MPI_Info_get_valuelen(info, "ppw", &len, &flag);
-		if(flag) {
-			char ppw_string[len + 1];
-			MPI_Info_get(info, "ppw", len + 1, ppw_string, &flag);
-			int n = sscanf(ppw_string, "%d", &ppw);
-			if (n != 1 || ppw <= 0) {
-				printf("MPIX_Comm_launch(): error retrieving info value for key 'ppw': "
-						"should be a positive int: '%s'\n", ppw_string);
-				MPI_Abort(comm, 1);
-			}
-		}
-	}
-	return ppw;
 }
 
 static inline void chdir_checked(MPI_Comm comm, const char* d);
@@ -295,8 +293,8 @@ int MPIX_Comm_launch(const char* cmd, char** argv,
 		char* print_time = info_get_exectime(info);
 		// get the timeout
 		float timeout = (float) info_get_timeout(comm, info);
-		int numproc = info_get_numproc(comm, info);
-		int ppw = info_get_ppw(comm, info);
+		int ppw = info_get_ppw(info);
+		int numproc = info_get_numproc(info);
 		assert(numproc <= ppw * size);
 
 		info_chdir(comm, info);
