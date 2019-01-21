@@ -1172,19 +1172,6 @@ AC_SUBST(TCL_LIB_SPEC)
 TCL_LIB_SPEC_EXTRA="${TCL_LIBS}"
 AC_SUBST(TCL_LIB_SPEC_EXTRA)
 
-DISABLE_LOG=0
-AC_ARG_ENABLE(log,
-                AS_HELP_STRING(
-                   [--disable-log],
-                   [Disables logging]),
-                 [
-                 if test "$enableval" = no ; then
-                   DISABLE_LOG=1
-                 fi
-                 ],
-                 [])
-# DISABLE_LOG set below:
-
 ENABLE_FAST=0
 AC_ARG_ENABLE(fast,
     AS_HELP_STRING([--enable-fast],
@@ -1214,8 +1201,6 @@ else
     AC_MSG_RESULT([Note: HDF5 is only required if you need Turbine's HDF features.])
 fi
 
-AC_DEFINE_UNQUOTED(DISABLE_LOG, $DISABLE_LOG, [Disables logging])
-
 ENABLE_BGP=0
 AC_ARG_ENABLE(bgp,
     AS_HELP_STRING([--enable-bgp],
@@ -1242,7 +1227,11 @@ AC_MSG_RESULT([])
 AC_MSG_RESULT([Preparing config files: please wait...])
 
 AC_CONFIG_FILES(
+        Makefile
         bin/turbine
+        bin/turbine-pilot
+        scripts/turbine-config.sh
+        scripts/turbine-build-config.sh
         src/turbine/turbine-version.h
         src/turbine/module.mk
         src/util/module.mk
@@ -1271,11 +1260,8 @@ AC_CONFIG_FILES(
         scripts/submit/slurm/module.mk
         scripts/submit/sge/module.mk
         scripts/submit/theta/module.mk
-        scripts/turbine-config.sh
-        scripts/turbine-build-config.sh
         tests/module.mk
         tests/runbin.zsh
-	Makefile
 )
 
         #         $USE_JVM_SCRIPT_HOME/src/module.mk
