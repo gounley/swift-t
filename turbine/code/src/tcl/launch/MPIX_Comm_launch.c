@@ -350,21 +350,14 @@ int MPIX_Comm_launch(const char* cmd, char** argv,
 
 		// create MPI command
 		if(strcmp("turbine",launcher) == 0) {
-			sprintf(mpicmd, "-ppn %d -hosts=%s", ppw, allhosts);
+			// sprintf(mpicmd, "-ppn %d -hosts=%s", ppw, allhosts);
 			setenv("TURBINE_LAUNCH_OPTIONS", mpicmd, 1);
 			sprintf(mpicmd, "%s -n %d ", launcher, (numproc+1));
 		} else {
-			if (strcmp("\0", print_time) == 0)
-			{
-				sprintf(mpicmd, "%s -n %d -ppn %d -hosts %s -launcher ssh ",
-						launcher, numproc, ppw, allhosts);
-			} else {
-				sprintf(mpicmd, "%s %s -n %d -ppn %d -hosts %s -launcher ssh ",
-						print_time, launcher, numproc, ppw, allhosts);
-			}
+			sprintf(mpicmd, "%s%s%s -n %d -ppn %d -hosts %s -launcher ssh ",
+					print_time, timeout_string, launcher, numproc, ppw, allhosts);
 		}
 
-		strcat(mpicmd, timeout_string);
 		if (envs != NULL)
 			strcat(mpicmd, envs);
 		// printf("envs: '%s'\n", envs);
