@@ -48,7 +48,7 @@ m4 ${TURBINE_LSF_M4} > ${TURBINE_LSF}
 print "wrote: ${TURBINE_LSF}"
 
 # Submit it!
-bsub < ${TURBINE_LSF} | read MESSAGE
+bsub ${TURBINE_LSF} | read MESSAGE
 echo $MESSAGE
 # Pull out 2nd word without characters '<' and '>'
 JOB_ID=${${(z)MESSAGE}[3]}

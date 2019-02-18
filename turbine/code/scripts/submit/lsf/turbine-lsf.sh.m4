@@ -68,8 +68,9 @@ export PYTHONPATH=getenv(PYTHONPATH)
 export LD_LIBRARY_PATH=getenv_nospace(LD_LIBRARY_PATH):getenv(TURBINE_LD_LIBRARY_PATH)
 source ${TURBINE_HOME}/scripts/turbine-config.sh
 
-module load gcc/6.3.1-20170301
-module load spectrum-mpi # /10.1.0.4-20170915
+module load gcc/6.4.0
+module load spectrum-mpi/10.2.0.10-20181214
+module load cuda/9.2.148
 # PATH=/opt/ibm/spectrum_mpi/jsm_pmix/bin:$PATH
 
 set -x
@@ -78,7 +79,7 @@ which jsrun
 
 START=$( date +%s.%N )
 hostname
-jsrun -n $PROCS -r $PPN -E TCLLIBPATH "${USER_ENVS_ARGS[@]}" ${COMMAND}
+jsrun --nrs $PROCS --tasks_per_rs 1 --cpu_per_rs 1 --gpu_per_rs 1 --rs_per_host $PPN -E TCLLIBPATH "${USER_ENVS_ARGS[@]}" ${COMMAND}
 # ~/mcs/ste/mpi/t.x # bash -c hostname
 CODE=$?
 echo
